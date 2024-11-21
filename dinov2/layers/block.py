@@ -86,8 +86,11 @@ class Block(nn.Module):
 
         self.sample_drop_ratio = drop_path
 
-    def forward(self, x: Tensor) -> Tensor:
-        def attn_residual_func(x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, return_attn: bool = False) -> Tensor:
+        def attn_residual_func(x: Tensor, return_attn: bool = False) -> Tensor:
+            if return_attn:
+                x, attn = self.attn(self.norm1(x), return_attn=return_attn)
+                return self.ls1(x), attn
             return self.ls1(self.attn(self.norm1(x)))
 
         def ffn_residual_func(x: Tensor) -> Tensor:
@@ -109,9 +112,16 @@ class Block(nn.Module):
             x = x + self.drop_path1(attn_residual_func(x))
             x = x + self.drop_path1(ffn_residual_func(x))  # FIXME: drop_path2
         else:
-            x = x + attn_residual_func(x)
+            if return_attn:
+                x1, attn = attn_residual_func(x, return_attn=return_attn)
+            else:
+                x1 = attn_residual_func(x)
+            x = x + x1
             x = x + ffn_residual_func(x)
-        return x
+        if return_attn:
+            return x, attn
+        else:
+            return x
 
 
 def drop_add_residual_stochastic_depth(
