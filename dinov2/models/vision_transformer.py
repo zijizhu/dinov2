@@ -260,8 +260,11 @@ class DinoVisionTransformer(nn.Module):
         attn_maps = []
 
         for blk in self.blocks:
-            x, attn = blk(x, return_attn=return_attn)
-            attn_maps.append(attn)
+            if return_attn:
+                x, attn = blk(x, return_attn=True)
+                attn_maps.append(attn)
+            else:
+                x = blk(x)
 
         x_norm = self.norm(x)
         feature_dict = {
@@ -271,7 +274,10 @@ class DinoVisionTransformer(nn.Module):
             "x_prenorm": x,
             "masks": masks,
         }
-        return feature_dict, attn_maps
+        if return_attn:
+            return feature_dict, attn_maps
+        else:
+            return feature_dict
 
     def _get_intermediate_layers_not_chunked(self, x, n=1):
         x = self.prepare_tokens_with_masks(x)
